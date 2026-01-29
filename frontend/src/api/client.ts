@@ -1,27 +1,28 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosError,
+  type InternalAxiosRequestConfig,
+} from "axios";
 
-const API_URL = '/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
-export const api = axios.create({
+const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
-// Token management
-const getAccessToken = () => localStorage.getItem('access_token');
-const getRefreshToken = () => localStorage.getItem('refresh_token');
+const getAccessToken = () => localStorage.getItem("access_token");
+const getRefreshToken = () => localStorage.getItem("refresh_token");
 const setTokens = (access: string, refresh: string) => {
-  localStorage.setItem('access_token', access);
-  localStorage.setItem('refresh_token', refresh);
+  localStorage.setItem("access_token", access);
+  localStorage.setItem("refresh_token", refresh);
 };
 const clearTokens = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
 };
 
-// Request interceptor to add auth header
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
@@ -30,14 +31,15 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
-// Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -45,11 +47,12 @@ api.interceptors.response.use(
       const refreshToken = getRefreshToken();
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_URL}/auth/token/refresh/`, {
-            refresh: refreshToken,
-          });
+          const response = await axios.post(
+            `${API_URL}/auth/token/refresh/`,
+            { refresh: refreshToken },
+          );
 
-          const { access } = response.data;
+          const { access } = response.data as { access: string };
           setTokens(access, refreshToken);
 
           if (originalRequest.headers) {
@@ -58,13 +61,13 @@ api.interceptors.response.use(
           return api(originalRequest);
         } catch {
           clearTokens();
-          window.location.href = '/login';
+          window.location.href = "/login";
         }
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
-export { setTokens, clearTokens, getAccessToken };
+export { api, setTokens, clearTokens, getAccessToken };
